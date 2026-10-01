@@ -1,4 +1,11 @@
 import math
+import random
+import json
+
+
+def xavier_init(fan_in, fan_out):
+    limit = math.sqrt(6 / (fan_in + fan_out))
+    return random.uniform(-limit, limit)
 
 
 class Neuron:
@@ -124,6 +131,67 @@ class Network:
 
         for i in range((len(self.layers) - 2), -1, -1):
             grads = self.layers[i].backward(grads, learning_rate)
+
+    @classmethod
+    def load(cls, file_name):
+        with open(file_name, "r") as f:
+            model = json.load(f)
+
+        layers = []
+
+        for saved_layer in model["layers"]:
+            neurons = []
+
+            for saved_neuron in saved_layer:
+                neuron = Neuron(saved_neuron["weights"], saved_neuron["bias"])
+
+                neurons.append(neuron)
+
+            layers.append(Layer(neurons))
+
+        return cls(layers)
+
+    # for layer, saved_layer in zip(network.layers, model["layers"]):
+    #    for neuron, saved_neuron in zip(layer.neurons, saved_layer):
+    #       neuron.weights = saved_neuron["weights"]
+    # neuron.bias = saved_neuron["bias"]
+
+    def save(self, file_name):
+
+        model = {"architecture": [], "layers": []}
+        if self.layers:
+            model["architecture"].append(len(self.layers[0].neurons[0].weights))
+
+        for layer in self.layers:
+            layer_data = []
+            model["architecture"].append(len(layer.neurons))
+
+            for neuron in layer.neurons:
+                layer_data.append({"weights": neuron.weights, "bias": neuron.bias})
+
+            model["layers"].append(layer_data)
+
+        with open(file_name, "w") as f:
+            json.dump(model, f)
+
+    @classmethod
+    def create(cls, architecture):
+        layers = []
+        for i in range(len(architecture) - 1):
+            input_size = architecture[i]
+            output_size = architecture[i + 1]
+            neurons = []
+
+            for _ in range(output_size):
+                weights = [
+                    xavier_init(input_size, output_size) for _ in range(input_size)
+                ]
+                bias = 0
+
+                neurons.append(Neuron(weights, bias))
+            layers.append(Layer(neurons))
+
+        return cls(layers)
 
 
 def loss(target, prediction):
